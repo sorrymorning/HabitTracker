@@ -2,8 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import User, Habit, HabitLog
+from pydantic import BaseModel
+
 
 router = APIRouter()
+
+class UserCreate(BaseModel):
+    name: str
+
 
 def get_db():
     db = SessionLocal()
@@ -13,8 +19,8 @@ def get_db():
         db.close()
 
 @router.post("/users")
-def create_user(name: str, db: Session = Depends(get_db)):
-    user = User(name=name)
+def create_user(user: UserCreate, db: Session = Depends(get_db)):
+    user = User(name=user.name)
     db.add(user)
     db.commit()
     db.refresh(user)
