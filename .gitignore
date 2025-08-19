@@ -1,4 +1,21 @@
 bin/
 include/
 lib/
-lib64/
+lib64
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# C extensions
+*.so
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# IDE configs
+.idea/
+.vscode/
