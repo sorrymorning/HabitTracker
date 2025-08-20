@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  test:
 
     runs-on: ubuntu-latest
 
@@ -35,14 +35,27 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
-      run: |
-        cd src
-        pytest -v
     - name: Test coverage
       run: |
-        pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=70
+        pytest --cov=src --cov-report=html --cov-fail-under=70
+    - name: Upload coverage to Pages artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: htmlcov
     - name: Cleanup test databases
       run: |
         rm -f src/tests/*.db
 
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
