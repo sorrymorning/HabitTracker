@@ -41,7 +41,6 @@ jobs:
         pytest -v
     - name: Test coverage
       run: |
-        cd src
         pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=70
     - name: Cleanup test databases
       run: |
