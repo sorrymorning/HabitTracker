@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from database import SessionLocal
-from models import User, Habit, HabitLog
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from database import SessionLocal
+from models import Habit, HabitLog, User
 
 router = APIRouter()
+
 
 class UserCreate(BaseModel):
     name: str
@@ -17,6 +18,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 @router.post("/users")
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
@@ -33,7 +35,7 @@ def get_users(db: Session = Depends(get_db)):
 
 
 @router.get("/users/{id}")
-def get_user_id(id:int ,db: Session = Depends(get_db)):
+def get_user_id(id: int, db: Session = Depends(get_db)):
     user = db.get(User, id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -41,7 +43,7 @@ def get_user_id(id:int ,db: Session = Depends(get_db)):
 
 
 @router.delete("/users/{id}")
-def delete_user(id:int ,db: Session = Depends(get_db)):
+def delete_user(id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -50,10 +52,10 @@ def delete_user(id:int ,db: Session = Depends(get_db)):
     return {"message": "User deleted successfully"}
 
 
-
-
 @router.post("/users/{user_id}/habits")
-def create_habit_for_user(user_id: int, title: str, description: str, db: Session = Depends(get_db)):
+def create_habit_for_user(
+    user_id: int, title: str, description: str, db: Session = Depends(get_db)
+):
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -81,14 +83,15 @@ def get_user_habit(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/habits/{habit_id}")
-def get_habits_id(habit_id: int,db: Session = Depends(get_db)):
+def get_habits_id(habit_id: int, db: Session = Depends(get_db)):
     habit = db.get(Habit, habit_id)
     if not habit:
         raise HTTPException(status_code=404, detail="User not found")
     return habit
 
+
 @router.delete("/habits/{habit_id}")
-def delete_habit(habit_id:int ,db: Session = Depends(get_db)):
+def delete_habit(habit_id: int, db: Session = Depends(get_db)):
     habit = db.query(Habit).filter(Habit.id == habit_id).first()
     if not habit:
         raise HTTPException(status_code=404, detail="Habit not found")
@@ -97,15 +100,13 @@ def delete_habit(habit_id:int ,db: Session = Depends(get_db)):
     return {"message": "Habit deleted successfully"}
 
 
-
-
 @router.post("/habits/{habit_id}/log")
-def create_log_habit(habit_id:int,db: Session = Depends(get_db)):
+def create_log_habit(habit_id: int, db: Session = Depends(get_db)):
     habit = db.get(Habit, habit_id)
     if not habit:
         raise HTTPException(status_code=404, detail="User not found")
 
-    log = HabitLog(habit_id = habit_id)
+    log = HabitLog(habit_id=habit_id)
     db.add(log)
     db.commit()
     db.refresh(log)
@@ -114,7 +115,7 @@ def create_log_habit(habit_id:int,db: Session = Depends(get_db)):
 
 
 @router.get("/habits/{habit_id}/log")
-def get_log_habit(habit_id:int,db: Session = Depends(get_db)):
+def get_log_habit(habit_id: int, db: Session = Depends(get_db)):
     habit = db.get(Habit, habit_id)
     if not habit:
         raise HTTPException(status_code=404, detail="Habit not found")

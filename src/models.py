@@ -1,7 +1,10 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey
-from sqlalchemy.orm import relationship, declarative_base
-from database import Base
 import datetime
+
+from sqlalchemy import Column, Date, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
+
+from database import Base
+
 
 class User(Base):
     __tablename__ = "users"
@@ -22,7 +25,9 @@ class Habit(Base):
 
     user = relationship("User", back_populates="habits")
 
-    logs = relationship("HabitLog", back_populates="habit", cascade="all, delete-orphan")
+    logs = relationship(
+        "HabitLog", back_populates="habit", cascade="all, delete-orphan"
+    )
 
 
 class HabitLog(Base):

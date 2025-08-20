@@ -2,16 +2,17 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from main import app
+
 from api import get_db
-from models import User, Habit,HabitLog
 from database import Base
-
-
+from main import app
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test_temp.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 def override_get_db():
     try:
@@ -25,6 +26,7 @@ app.dependency_overrides[get_db] = override_get_db
 
 client = TestClient(app)
 
+
 @pytest.fixture(autouse=True)
 def setup_and_teardown():
     # Создаем таблицы перед тестами
@@ -32,6 +34,7 @@ def setup_and_teardown():
     yield
     # Удаляем таблицы после тестов
     Base.metadata.drop_all(bind=engine)
+
 
 @pytest.mark.asyncio
 async def test_create_user():
@@ -68,6 +71,7 @@ async def test_get_user_id_not_found():
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
 
+
 @pytest.mark.asyncio
 async def test_delete_user():
     # Создаем тестового пользователя
@@ -79,6 +83,7 @@ async def test_delete_user():
     # Проверяем, что пользователь удален
     response = client.get(f"/users/{user_id}")
     assert response.status_code == 404
+
 
 @pytest.mark.asyncio
 async def test_delete_user_not_found():
