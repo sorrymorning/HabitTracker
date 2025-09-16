@@ -12,6 +12,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     habits = relationship("Habit", back_populates="user", cascade="all, delete-orphan")
+    hashed_password = Column(String, nullable=False)
 
 
 class Habit(Base):

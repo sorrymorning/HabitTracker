@@ -6,6 +6,8 @@ from sqlalchemy.orm import sessionmaker
 from api import get_db
 from database import Base
 from main import app
+from models import User
+from utils import get_password_hash
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test_temp.db"
 engine = create_engine(
@@ -36,32 +38,56 @@ def setup_and_teardown():
     Base.metadata.drop_all(bind=engine)
 
 
-@pytest.mark.asyncio
-async def test_create_user():
-    response = client.post("/users", json={"name": "Test User"})
+@pytest.fixture
+def token():
+    db = TestingSessionLocal()
+    user = User(name="amir", hashed_password=get_password_hash("1234"))
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    db.close()
+
+    response = client.post("/login", data={"username": "amir", "password": "1234"})
+    return response.json()["access_token"]
+
+
+def test_register_user_success():
+    response = client.post("/register", json={"name": "amir", "password": "1234"})
     assert response.status_code == 200
-    assert response.json()["name"] == "Test User"
-    assert "id" in response.json()
+    data = response.json()
+    assert "id" in data
+    assert data["name"] == "amir"
+
+
+def test_register_user_duplicate():
+    # первый раз ок
+    client.post("/register", json={"name": "amir", "password": "1234"})
+    # второй раз должно вернуть ошибку
+    response = client.post("/register", json={"name": "amir", "password": "1234"})
+    assert response.status_code == 400
+    assert response.json()["detail"] == "User already exists"
 
 
 @pytest.mark.asyncio
 async def test_get_users():
     # Создаем тестового пользователя
-    client.post("/users", json={"name": "User1"})
+    client.post("/register", json={"name": "amir", "password": "1234"})
     response = client.get("/users")
     assert response.status_code == 200
     assert len(response.json()) >= 1
-    assert response.json()[0]["name"] == "User1"
+    assert response.json()[0]["name"] == "amir"
 
 
 @pytest.mark.asyncio
 async def test_get_user_id():
     # Создаем тестового пользователя
-    create_response = client.post("/users", json={"name": "User2"})
+    create_response = client.post(
+        "/register", json={"name": "amir", "password": "1234"}
+    )
     user_id = create_response.json()["id"]
     response = client.get(f"/users/{user_id}")
     assert response.status_code == 200
-    assert response.json()["name"] == "User2"
+    assert response.json()["name"] == "amir"
     assert response.json()["id"] == user_id
 
 
@@ -75,7 +101,9 @@ async def test_get_user_id_not_found():
 @pytest.mark.asyncio
 async def test_delete_user():
     # Создаем тестового пользователя
-    create_response = client.post("/users", json={"name": "User3"})
+    create_response = client.post(
+        "/register", json={"name": "amir", "password": "1234"}
+    )
     user_id = create_response.json()["id"]
     response = client.delete(f"/users/{user_id}")
     assert response.status_code == 200
@@ -90,3 +118,74 @@ async def test_delete_user_not_found():
     response = client.delete("/users/999")
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
+
+
+def test_create_habit(token):
+    response = client.post(
+        "/habits",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"title": "Test Habit", "description": "Test Desc"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Test Habit"
+    assert "id" in data
+
+
+def test_get_habits(token):
+    # создаём привычку сначала
+    client.post(
+        "/habits",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"title": "Test Habit", "description": "Test Desc"},
+    )
+
+    response = client.get("/habits", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["title"] == "Test Habit"
+
+
+def test_delete_habit(token):
+    # создаём привычку
+    res = client.post(
+        "/habits",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"title": "To Delete", "description": "Desc"},
+    )
+    habit_id = res.json()["id"]
+
+    # удаляем привычку
+    response = client.delete(
+        f"/habits/{habit_id}", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    assert response.json()["message"] == "Habit deleted successfully"
+
+
+def test_habit_access_denied_for_other_user(token):
+    # создаём вторую учётку
+    db = TestingSessionLocal()
+    user2 = User(name="other", hashed_password=get_password_hash("4321"))
+    db.add(user2)
+    db.commit()
+    db.refresh(user2)
+    db.close()
+
+    # создаём привычку для второго пользователя
+    db = TestingSessionLocal()
+    from models import Habit
+
+    habit2 = Habit(title="Other Habit", description="Other Desc", user_id=user2.id)
+    db.add(habit2)
+    db.commit()
+    db.refresh(habit2)
+    habit2_id = habit2.id
+    db.close()
+
+    # пробуем получить чужую привычку
+    response = client.get(
+        f"/habits/{habit2_id}", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 404
