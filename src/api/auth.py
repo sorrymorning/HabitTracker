@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
-from utils import get_password_hash, verify_password
+
 from database import get_db
 from models import User, UserCreate
+from utils import get_password_hash, verify_password
 
 SECRET_KEY = "supersecretkey"  # вынеси в env!
 ALGORITHM = "HS256"

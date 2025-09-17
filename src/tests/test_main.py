@@ -3,9 +3,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from database import Base
+from database import Base, get_db
 from main import app
-from database import get_db
 from models import User
 from utils import get_password_hash
 
@@ -48,7 +47,6 @@ def token():
     db.close()
 
     response = client.post("/auth/login", data={"username": "amir", "password": "1234"})
-   
 
     return response.json()["access_token"]
 
