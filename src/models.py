@@ -1,9 +1,20 @@
 import datetime
 
+from pydantic import BaseModel
 from sqlalchemy import Column, Date, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from database import Base
+
+
+class UserCreate(BaseModel):
+    name: str
+    password: str
+
+
+class HabitCreate(BaseModel):
+    title: str
+    description: str
 
 
 class User(Base):

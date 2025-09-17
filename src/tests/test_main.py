@@ -3,9 +3,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from api import get_db
 from database import Base
 from main import app
+from database import get_db
 from models import User
 from utils import get_password_hash
 
@@ -47,12 +47,14 @@ def token():
     db.refresh(user)
     db.close()
 
-    response = client.post("/login", data={"username": "amir", "password": "1234"})
+    response = client.post("/auth/login", data={"username": "amir", "password": "1234"})
+   
+
     return response.json()["access_token"]
 
 
 def test_register_user_success():
-    response = client.post("/register", json={"name": "amir", "password": "1234"})
+    response = client.post("/auth/register", json={"name": "amir", "password": "1234"})
     assert response.status_code == 200
     data = response.json()
     assert "id" in data
@@ -61,9 +63,9 @@ def test_register_user_success():
 
 def test_register_user_duplicate():
     # первый раз ок
-    client.post("/register", json={"name": "amir", "password": "1234"})
+    client.post("/auth/register", json={"name": "amir", "password": "1234"})
     # второй раз должно вернуть ошибку
-    response = client.post("/register", json={"name": "amir", "password": "1234"})
+    response = client.post("/auth/register", json={"name": "amir", "password": "1234"})
     assert response.status_code == 400
     assert response.json()["detail"] == "User already exists"
 
@@ -71,7 +73,7 @@ def test_register_user_duplicate():
 @pytest.mark.asyncio
 async def test_get_users():
     # Создаем тестового пользователя
-    client.post("/register", json={"name": "amir", "password": "1234"})
+    client.post("/auth/register", json={"name": "amir", "password": "1234"})
     response = client.get("/users")
     assert response.status_code == 200
     assert len(response.json()) >= 1
@@ -82,7 +84,7 @@ async def test_get_users():
 async def test_get_user_id():
     # Создаем тестового пользователя
     create_response = client.post(
-        "/register", json={"name": "amir", "password": "1234"}
+        "/auth/register", json={"name": "amir", "password": "1234"}
     )
     user_id = create_response.json()["id"]
     response = client.get(f"/users/{user_id}")
@@ -102,7 +104,7 @@ async def test_get_user_id_not_found():
 async def test_delete_user():
     # Создаем тестового пользователя
     create_response = client.post(
-        "/register", json={"name": "amir", "password": "1234"}
+        "/auth/register", json={"name": "amir", "password": "1234"}
     )
     user_id = create_response.json()["id"]
     response = client.delete(f"/users/{user_id}")
@@ -189,3 +191,29 @@ def test_habit_access_denied_for_other_user(token):
         f"/habits/{habit2_id}", headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 404
+
+
+def test_daily_summary_image(token):
+    # создаём привычку
+    client.post(
+        "/habits",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"title": "Test Habit", "description": "Test Desc"},
+    )
+
+    # логируем привычку (чтобы summary было не пустое)
+    client.post("/habits/1/log", headers={"Authorization": f"Bearer {token}"})
+
+    # запрашиваем картинку
+    response = client.get(
+        "/summary/daily-summary/image", headers={"Authorization": f"Bearer {token}"}
+    )
+
+    # проверяем статус и тип ответа
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+
+    # проверяем, что в ответе реально байты картинки
+    content = response.content
+    assert content[:8] == b"\x89PNG\r\n\x1a\n"  # сигнатура PNG
+    assert len(content) > 100  # файл не пустой
