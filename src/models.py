@@ -1,8 +1,9 @@
 import datetime
 
 from pydantic import BaseModel
-from sqlalchemy import Column, Date, ForeignKey, Integer, String
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
 from database import Base
 
@@ -47,6 +48,6 @@ class HabitLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     habit_id = Column(Integer, ForeignKey("habits.id"), nullable=False)
-    date = Column(Date, default=datetime.date.today)
+    date = Column(DateTime(timezone=True), server_default=func.now())
 
     habit = relationship("Habit", back_populates="logs")

@@ -130,6 +130,7 @@ def test_create_habit(token):
     data = response.json()
     assert data["title"] == "Test Habit"
     assert "id" in data
+    assert data["id"] == 1
 
 
 def test_get_habits(token):
@@ -191,7 +192,54 @@ def test_habit_access_denied_for_other_user(token):
     assert response.status_code == 404
 
 
-def test_daily_summary_image(token):
+def test_create_log_habit(token):
+    # сначала создаём привычку
+    response = client.post(
+        "/habits",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"title": "Morning Run", "description": "Run 5km"},
+    )
+    assert response.status_code == 200
+    habit = response.json()
+    habit_id = habit["id"]
+
+    # теперь создаём лог
+    response = client.post(
+        f"/habits/{habit_id}/log", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    log = response.json()
+    assert log["habit_id"] == habit_id
+    assert log["id"] == 1
+
+
+def test_get_log_habit(token):
+    # создаём привычку
+    response = client.post(
+        "/habits",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"title": "Read Book", "description": "Read 10 pages"},
+    )
+    assert response.status_code == 200
+    habit = response.json()
+    habit_id = habit["id"]
+
+    # создаём лог
+    client.post(f"/habits/{habit_id}/log", headers={"Authorization": f"Bearer {token}"})
+
+    # получаем логи
+    response = client.get(
+        f"/habits/{habit_id}/log", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    logs = response.json()
+
+    # проверяем, что лог существует
+    assert len(logs) == 1
+    assert logs[0]["habit_id"] == habit_id
+
+
+def test_get_daily_summary(token):
     # создаём привычку
     client.post(
         "/habits",
@@ -199,19 +247,30 @@ def test_daily_summary_image(token):
         json={"title": "Test Habit", "description": "Test Desc"},
     )
 
-    # логируем привычку (чтобы summary было не пустое)
+    # отмечаем её выполненной (создаём лог)
     client.post("/habits/1/log", headers={"Authorization": f"Bearer {token}"})
 
-    # запрашиваем картинку
+    # получаем дневной отчёт
     response = client.get(
-        "/summary/daily-summary/image", headers={"Authorization": f"Bearer {token}"}
+        "/summary/daily-summary", headers={"Authorization": f"Bearer {token}"}
     )
 
-    # проверяем статус и тип ответа
     assert response.status_code == 200
-    assert response.headers["content-type"] == "image/png"
+    data = response.json()
 
-    # проверяем, что в ответе реально байты картинки
-    content = response.content
-    assert content[:8] == b"\x89PNG\r\n\x1a\n"  # сигнатура PNG
-    assert len(content) > 100  # файл не пустой
+    # проверяем ключи
+    assert "date" in data
+    assert "total_habits" in data
+    assert "completed" in data
+    assert "not_completed" in data
+    assert "percent" in data
+    assert "habits" in data
+    assert "done_habits" in data
+
+    # проверяем корректность
+    assert data["total_habits"] == 1
+    assert data["completed"] == 1
+    assert data["not_completed"] == 0
+    assert data["percent"] == 100
+    assert "Test Habit" in data["habits"]
+    assert "Test Habit" in data["done_habits"]

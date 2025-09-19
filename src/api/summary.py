@@ -5,7 +5,6 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from database import get_db
-from image import generate_end_of_day_image
 from models import Habit, HabitLog, User
 
 from .auth import get_current_user
@@ -45,11 +44,10 @@ def get_daily_summary(db: Session, user_id: int, summary_date: date = None):
     }
 
 
-@router.get("/daily-summary/image")
-def get_daily_summary_image(
+@router.get("/daily-summary")
+def get_daily_summary_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     summary = get_daily_summary(db, current_user.id)
-    path = generate_end_of_day_image(summary, f"summary_{current_user.id}.png")
-    return FileResponse(path, media_type="image/png")
+    return summary
